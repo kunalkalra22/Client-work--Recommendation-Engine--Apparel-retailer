@@ -1,3 +1,5 @@
+#TextMining #RecommendationEngine
+
 This project involved creating a recommendation engine for one of the largest premium ethnic-wear apparel brands in India. Due to the customer repeat rate being really low (<20%) in the data available to us, and customer cyclicity being sparse and roughly coinciding with the festivals in India, a rule-based recommendation approach was thought more prudent than a ML-model based approach. 
 Tags were created at a customer-category level; meaning, each customers KPI's were captured based on their transactional activity for the different product categories that the brand offered. Additionally, customer's gender was also derived by first identifying the intended gender (men/women/boys/girls/misc) for each product using the product descriptions, and then looking at the gender-wise quantity penetration at a category-level. This was done for 2 reasons:-
 a) customer's demographic data capture rate was really low
