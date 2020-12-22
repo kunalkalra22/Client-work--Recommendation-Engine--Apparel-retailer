@@ -1,0 +1,670 @@
+#Using a loop to create tags on a customer-category level from the SKU Data:
+
+//SKU_Data:
+//LOAD UniqueItemCode, 
+//     SNo, 
+//     StoreCode, 
+//     transaction_date, 
+//     UniqueBillNo, 
+//     UniqueItemName, 
+//     ItemQty, 
+//     ItemNetAmount, 
+//     mobile, 
+//     lifetime_visit_rank, 
+//     dayssincelastvisit, 
+//     Gender_derived, 
+//     Age_group_derived
+//FROM
+//[D:\Kunal's Files\SKU_Data_1_Jan_2018_to_20_June_2020.qvd]
+//(qvd);
+//
+//inner join
+//
+//LOAD UniqueItemCode, 
+//     DepartmentName,
+//     DepartmentCode, 
+//     CategoryName, 
+//     Replace(Replace(Replace(Replace(Replace(CategoryName,'#',''),' ','_'),'&','N'),'-',''),'/','OR') as NewCategoryName, 
+//     CategoryCode, 
+//     SubCategoryName, 
+//     Replace(Replace(Replace(Replace(Replace(CategoryName,'#',''),' ','_'),'&','N'),'-',''),'/','Or')&'#'&Replace(Replace(Replace(Replace(Replace(SubCategoryName,'#',''),' ','_'),'&','N'),'-',''),'/','Or') as Category_SubCategory_Combo,
+//     SubCategoryCode, 
+//     ItemDescription 
+//FROM
+//[D:\Kunal's Files\Item master Jan 2020 - Kunal Kalra.xlsx]
+//(ooxml, embedded labels, table is [Item master Jan2020-KunalKalra])
+//where Is_polybag = 0
+//and DepartmentName<>'Consumables' and CategoryName<>'Consumables';
+//
+//////----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//////Category-Level Tags
+//
+//NoConcatenate
+//
+//Category_List:
+//Load distinct NewCategoryName
+//Resident 
+//SKU_Data;
+//
+//
+//FOR Each i in FieldValueList('NewCategoryName')
+//
+//left join (Single_View_Temp_Cat)
+//
+////$(i)_Category_Tags:
+//LOAD mobile,
+//	 count(DISTINCT UniqueBillNo) as $(i)_Category_Total_Transactions,
+//	 sum(ItemNetAmount) as $(i)_Category_Total_Spends,
+//	 count(distinct transaction_date) as $(i)_Category_Visits,
+//	 Sum(ItemQty) as $(i)_Category_Total_Qty_Purchased,
+//	 '20-06-2020'-max(transaction_date) as $(i)_Category_Recency,
+//	 (max(transaction_date)-min(transaction_date))/(count(distinct transaction_date)-1) as $(i)_Category_Latency,
+//	 ('20-06-2020'-max(transaction_date))/((max(transaction_date)-min(transaction_date))/(count(distinct transaction_date)-1)) as $(i)_Category_RL_Ratio
+//
+//Resident 
+//SKU_Data
+//
+//Where NewCategoryName='$(i)'
+//
+//Group by mobile;
+//
+////Store $(i)_Category_Tags into $(i)_Category_Tags.qvd;
+////Drop table $(i)_Category_Tags;
+//
+//NEXT i;
+//
+//DROP Table Category_List;
+//
+//Store Single_View_Temp_Cat into Mega_Single_View_1_Jan_2018_to_20_June_2020.qvd;
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#Creating derived gender tags using category quantity penetration
+//SKU_Data:
+//LOAD mobile,
+//	 count(DISTINCT UniqueBillNo) as Total_Transactions,
+//	 sum(ItemNetAmount) as Total_Spends,
+//	 count(distinct transaction_date) as Visits,
+//	 Sum(ItemQty) as Total_Qty_Purchased,
+//	 '31-03-2020'-date(max(transaction_date)) as Recency,
+//	 (date(max(transaction_date))-date(min(transaction_date)))/(count(distinct transaction_date)-1) as Latency,
+//	 sum(ItemNetAmount)/count(DISTINCT UniqueBillNo) as ABV,
+//	 Sum(ItemQty)/count(DISTINCT UniqueBillNo) as ABS,
+//	 Sum(if(Gender_derived='Women', ItemQty)) as Women_Total_Qty_Purchased,
+//	 Sum(if(Gender_derived='Men', ItemQty)) as Men_Total_Qty_Purchased,
+//	 Sum(if(Gender_derived='Girls', ItemQty)) as Girls_Total_Qty_Purchased, 
+//	 Sum(if(Gender_derived='Boys', ItemQty)) as Boys_Total_Qty_Purchased, 
+//	 Sum(if(Gender_derived='Kids', ItemQty)) as Kids_Total_Qty_Purchased, 
+//	 Sum(if(Gender_derived='Infants', ItemQty)) as Infants_Total_Qty_Purchased, 
+// 	 Sum(if(Gender_derived='Neutral', ItemQty)) as Neutral_Total_Qty_Purchased
+//FROM
+//[D:\Kunal's Files\SKU_Data_1_Jan_2018_to_20_June_2020.qvd]
+//(qvd)
+//
+//where date(transaction_date)>='01-04-2019' and date(transaction_date)<='31-03-2020'
+//
+//Group by mobile;
+//
+//NoConcatenate
+//
+//Single_View:
+//Load mobile,
+//	 Total_Transactions,
+//	 Total_Spends,
+//	 Visits,
+//	 Total_Qty_Purchased,
+//	 Recency,
+//	 Latency,
+//	 ABV,
+//	 ABS,
+//	 Women_Total_Qty_Purchased,
+//	 Men_Total_Qty_Purchased,
+//	 Girls_Total_Qty_Purchased,
+//	 Boys_Total_Qty_Purchased,
+//	 Kids_Total_Qty_Purchased,
+//	 Infants_Total_Qty_Purchased,
+//	 Neutral_Total_Qty_Purchased,
+//	 if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Women_Total_Qty_Purchased,'Women',
+//     	if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Men_Total_Qty_Purchased,'Men',
+//     		if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Boys_Total_Qty_Purchased,'Boys',
+//     			if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Girls_Total_Qty_Purchased,'Girls',
+//				 	if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Kids_Total_Qty_Purchased,'Kids',  
+//						if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Infants_Total_Qty_Purchased,'Infants', 
+//							 if(RangeMax(Women_Total_Qty_Purchased,Men_Total_Qty_Purchased,Girls_Total_Qty_Purchased, Boys_Total_Qty_Purchased, Kids_Total_Qty_Purchased, Infants_Total_Qty_Purchased, Neutral_Total_Qty_Purchased)=Neutral_Total_Qty_Purchased, if((Women_Total_Qty_Purchased/Total_Qty_Purchased)*100>30,'Women',if((Men_Total_Qty_Purchased/Total_Qty_Purchased)*100>30,'Men','Neutral'))))))))) as customer_derived_gender,
+//	 if(Girls_Total_Qty_Purchased+Boys_Total_Qty_Purchased+Kids_Total_Qty_Purchased+Infants_Total_Qty_Purchased and (Women_Total_Qty_Purchased+Men_Total_Qty_Purchased)>0, 'Family Buyers',
+//	 	if(Women_Total_Qty_Purchased>0 and Men_Total_Qty_Purchased>0, 'Couple Buyers','Others')) as Product_segment,
+//	 (Men_Total_Qty_Purchased/Total_Qty_Purchased)*100 as Men_Penetration,
+//	 (Women_Total_Qty_Purchased/Total_Qty_Purchased)*100 as Women_Penetration
+//Resident
+//SKU_Data;
+//
+//Drop table SKU_Data;
+//
+//Store Single_View into Single_View_1_April_2019_to_31_March_2020.qvd;
+//
+//Drop table Single_View;
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#Creating tags at a customer & department/category level from the Item Master, and merging them into a unified Analytics Base Table, aka, Customer Single View.
+
+//Single_View_Temp:
+//LOAD mobile, 
+//     Total_Transactions, 
+//     Total_Spends, 
+//     Visits, 
+//     Total_Qty_Purchased, 
+//     Latency, 
+//     ABV, 
+//     ABS, 
+//     Women_Total_Qty_Purchased, 
+//     Men_Total_Qty_Purchased, 
+//     Girls_Total_Qty_Purchased, 
+//     Boys_Total_Qty_Purchased, 
+//     Kids_Total_Qty_Purchased, 
+//     Infants_Total_Qty_Purchased, 
+//     Neutral_Total_Qty_Purchased, 
+//     customer_derived_gender, 
+//     Product_segment, 
+//     Men_Penetration, 
+//     Women_Penetration
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Single_View_1_Jan_2018_to_20_June_2020.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Fabric_Total_Transactions as Fabric_Dept_Total_Transactions,
+//     Fabric_Total_Spends as Fabric_Dept_Total_Spends,
+//     Fabric_Visits as Fabric_Dept_Visits,
+//     Fabric_Total_Qty_Purchased as Fabric_Dept_Total_Qty_Purchased,
+//     Fabric_Latency as Fabric_Dept_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Fabric_Department_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Garments_Total_Transactions as Garments_Dept_Total_Transactions, 
+//     Garments_Total_Spends as Garments_Dept_Total_Spends, 
+//     Garments_Visits as Garments_Dept_Visits, 
+//     Garments_Total_Qty_Purchased as Garments_Dept_Total_Qty_Purchased, 
+//     Garments_Latency as Garments_Dept_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Garments_Department_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Home_Total_Transactions as Home_Dept_Total_Transactions,
+//	 Home_Total_Spends as Home_Dept_Total_Spends,
+//	 Home_Visits as Home_Dept_Visits,
+//	 Home_Total_Qty_Purchased as Home_Dept_Total_Qty_Purchased,
+//	 Home_Latency as Home_Dept_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Home_Department_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Organic_Foods_Total_Transactions as Organic_Foods_Dept_Total_Transactions,
+//     Organic_Foods_Total_Spends as Organic_Foods_Dept_Total_Spends,
+//     Organic_Foods_Visits as Organic_Foods_Dept_Visits,
+//     Organic_Foods_Total_Qty_Purchased as Organic_Foods_Dept_Total_Qty_Purchased,
+//     Organic_Foods_Latency as Organic_Foods_Dept_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Organic_Foods_Department_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Personal_Care_Total_Transactions as Personal_Care_Dept_Total_Transactions,
+//     Personal_Care_Total_Spends as Personal_Care_Dept_Total_Spends,
+//     Personal_Care_Visits as Personal_Care_Dept_Visits,
+//     Personal_Care_Total_Qty_Purchased as Personal_Care_Dept_Total_Qty_Purchased,
+//     Personal_Care_Latency as Personal_Care_Dept_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Personal_Care_Department_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Bags_N_Accessories_Total_Transactions, 
+//     Bags_N_Accessories_Total_Spends, 
+//     Bags_N_Accessories_Visits, 
+//     Bags_N_Accessories_Total_Qty_Purchased, 
+//     Bags_N_Accessories_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Bags_N_Accessories_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Bath_Linen_Total_Transactions, 
+//     Bath_Linen_Total_Spends, 
+//     Bath_Linen_Visits, 
+//     Bath_Linen_Total_Qty_Purchased, 
+//     Bath_Linen_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Bath_Linen_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Bed_Linen_Total_Transactions, 
+//     Bed_Linen_Total_Spends, 
+//     Bed_Linen_Visits, 
+//     Bed_Linen_Total_Qty_Purchased, 
+//     Bed_Linen_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Bed_Linen_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Curtain_Total_Transactions, 
+//     Curtain_Total_Spends, 
+//     Curtain_Visits, 
+//     Curtain_Total_Qty_Purchased, 
+//     Curtain_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Curtain_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Customisation_Total_Transactions, 
+//     Customisation_Total_Spends, 
+//     Customisation_Visits, 
+//     Customisation_Total_Qty_Purchased, 
+//     Customisation_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Customisation_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     XYZ_Women_Western_Total_Transactions, 
+//     XYZ_Women_Western_Total_Spends, 
+//     XYZ_Women_Western_Visits, 
+//     XYZ_Women_Western_Total_Qty_Purchased, 
+//     XYZ_Women_Western_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\ XYZ_Women_Western_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Fabels_Total_Transactions, 
+//     Fabels_Total_Spends, 
+//     Fabels_Visits, 
+//     Fabels_Total_Qty_Purchased, 
+//     Fabels_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Fabels_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Floor_Coverings_Total_Transactions, 
+//     Floor_Coverings_Total_Spends, 
+//     Floor_Coverings_Visits, 
+//     Floor_Coverings_Total_Qty_Purchased, 
+//     Floor_Coverings_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Floor_Coverings_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Footwear_Total_Transactions, 
+//     Footwear_Total_Spends, 
+//     Footwear_Visits, 
+//     Footwear_Total_Qty_Purchased, 
+//     Footwear_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Footwear_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Furniture_Total_Transactions, 
+//     Furniture_Total_Spends, 
+//     Furniture_Visits, 
+//     Furniture_Total_Qty_Purchased, 
+//     Furniture_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Furniture_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Garment_Accessories_Total_Transactions, 
+//     Garment_Accessories_Total_Spends, 
+//     Garment_Accessories_Visits, 
+//     Garment_Accessories_Total_Qty_Purchased, 
+//     Garment_Accessories_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Garment_Accessories_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Giftable_Total_Transactions, 
+//     Giftable_Total_Spends, 
+//     Giftable_Visits, 
+//     Giftable_Total_Qty_Purchased, 
+//     Giftable_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Giftable_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Home_Decor_Total_Transactions, 
+//     Home_Decor_Total_Spends, 
+//     Home_Decor_Visits, 
+//     Home_Decor_Total_Qty_Purchased, 
+//     Home_Decor_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Home_Decor_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Infants_Kids_Total_Transactions, 
+//     Infants_Kids_Total_Spends, 
+//     Infants_Kids_Visits, 
+//     Infants_Kids_Total_Qty_Purchased, 
+//     Infants_Kids_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Infants_Kids_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Jewelry_Total_Transactions, 
+//     Jewelry_Total_Spends, 
+//     Jewelry_Visits, 
+//     Jewelry_Total_Qty_Purchased, 
+//     Jewelry_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Jewelry_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Kids_Western_Total_Transactions, 
+//     Kids_Western_Total_Spends, 
+//     Kids_Western_Visits, 
+//     Kids_Western_Total_Qty_Purchased, 
+//     Kids_Western_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Kids_Western_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Lighting_Total_Transactions, 
+//     Lighting_Total_Spends, 
+//     Lighting_Visits, 
+//     Lighting_Total_Qty_Purchased, 
+//     Lighting_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Lighting_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Mens_Total_Transactions, 
+//     Mens_Total_Spends, 
+//     Mens_Visits, 
+//     Mens_Total_Qty_Purchased, 
+//     Mens_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Mens_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Mens_Western_Total_Transactions, 
+//     Mens_Western_Total_Spends, 
+//     Mens_Western_Visits, 
+//     Mens_Western_Total_Qty_Purchased, 
+//     Mens_Western_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Mens_Western_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Organic_Foods_Total_Transactions, 
+//     Organic_Foods_Total_Spends, 
+//     Organic_Foods_Visits, 
+//     Organic_Foods_Total_Qty_Purchased, 
+//     Organic_Foods_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Organic_Foods_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Personal_Care_Total_Transactions, 
+//     Personal_Care_Total_Spends, 
+//     Personal_Care_Visits, 
+//     Personal_Care_Total_Qty_Purchased, 
+//     Personal_Care_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Personal_Care_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Sari_Total_Transactions, 
+//     Sari_Total_Spends, 
+//     Sari_Visits, 
+//     Sari_Total_Qty_Purchased, 
+//     Sari_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Sari_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Table_Linen_Total_Transactions, 
+//     Table_Linen_Total_Spends, 
+//     Table_Linen_Visits, 
+//     Table_Linen_Total_Qty_Purchased, 
+//     Table_Linen_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Table_Linen_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Tableware_Total_Transactions, 
+//     Tableware_Total_Spends, 
+//     Tableware_Visits, 
+//     Tableware_Total_Qty_Purchased, 
+//     Tableware_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Tableware_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Upholstery_Total_Transactions, 
+//     Upholstery_Total_Spends, 
+//     Upholstery_Visits, 
+//     Upholstery_Total_Qty_Purchased, 
+//     Upholstery_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Upholstery_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Womens_Indian_Total_Transactions, 
+//     Womens_Indian_Total_Spends, 
+//     Womens_Indian_Visits, 
+//     Womens_Indian_Total_Qty_Purchased, 
+//     Womens_Indian_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Womens_Indian_Category_Tags.qvd]
+//(qvd);
+//
+//left join (Single_View_Temp)
+//
+//LOAD mobile, 
+//     Womens_Western_Total_Transactions, 
+//     Womens_Western_Total_Spends, 
+//     Womens_Western_Visits, 
+//     Womens_Western_Total_Qty_Purchased, 
+//     Womens_Western_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\Womens_Western_Category_Tags.qvd]
+//(qvd);
+//
+//Store Single_View_Temp into Single_View_Temp.qvd;
+//-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Creating Buckets for Recommendation
+
+//Temp:
+//LOAD mobile, 
+//     Replace(SubCategory,'_Visits','') as SubCategory,
+//     mobile&Replace(SubCategory,'_Visits','') as Key,
+//     Visits,
+//     if(Visits=1,1,'>=2') as Visits_Bucket
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\mobile_SubCategory_Visits.qvd]
+//(qvd);
+//
+//left join
+//
+//LOAD mobile&Replace(SubCategory,'_Recency','') as Key, 
+//     Recency,
+//     if(Recency>365,'>365',if(Recency>=90,'90-365','<90')) as Recency_Bucket
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\mobile_SubCategory_Recency.qvd]
+//(qvd);
+//
+//left join
+//
+//LOAD mobile&Replace(SubCategory,'_Latency','') as Key, 
+//     Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\mobile_SubCategory_Latency.qvd]
+//(qvd);
+//
+//left join
+//
+//LOAD Replace(SubCategory,'_Latency','') as SubCategory, 
+//     SubCategory_Latency
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\SubCategory_Latency.qvd]
+//(qvd);
+//
+//left join
+//
+//LOAD mobile&Replace(SubCategory,'_Total_Qty_Purchased','') as Key, 
+//     Qty_Purchased 
+//FROM
+//[D:\Kunal's Files\Files for Recommendation Engine\mobile_SubCategory.qvd]
+//(qvd);
+//
+//
+//NoConcatenate
+//
+//Temp_2:
+//Load mobile,
+//	 SubCategory,
+//	 Visits,
+//	 Visits_Bucket,
+//	 Recency,
+//	 Recency_Bucket,
+//	 Latency,
+//	 SubCategory_Latency,
+//	 Qty_Purchased,
+//	 if(Qty_Purchased/Visits>1,'A','B') as Cell,
+//	 fAbs(1-Recency/(if(Latency>0,Latency,SubCategory_Latency))) as Tie_Break
+//Resident Temp
+//;
+//
+//Drop table Temp;
+//	 
+//
+//NoConcatenate
+//
+//Recommendation_Buckets:
+//Load mobile,
+//	 SubCategory,
+//	 Visits,
+//	 Visits_Bucket,
+//	 Recency,
+//	 Recency_Bucket,
+//	 Latency,
+//	 SubCategory_Latency,
+//	 Recency/if(Latency>0,Latency,SubCategory_Latency) as RL_Ratio,
+//	 Qty_Purchased,
+//	 Cell,
+//	 Tie_Break,
+//	 if(Visits_Bucket='>=2' and Recency_Bucket='90-365' and Cell='A',1,
+//	 	if(Visits_Bucket='>=2' and Recency_Bucket='90-365' and Cell='B',2,
+//	 		if(Visits_Bucket='>=2' and Recency_Bucket='>365' and Cell='A',3,
+//	 			if(Visits_Bucket='>=2' and Recency_Bucket='>365' and Cell='B',4,
+//	 				if(Visits_Bucket='1' and Recency_Bucket='90-365' and Cell='A',5,
+//	 					if(Visits_Bucket='1' and Recency_Bucket='90-365' and Cell='B',6,
+//	 						if(Visits_Bucket='>=2' and Recency_Bucket='<90' and Cell='A',7,
+//							 	if(Visits_Bucket='>=2' and Recency_Bucket='<90' and Cell='B',8,
+//							 		if(Visits_Bucket='1' and Recency_Bucket='>365' and Cell='A',9,
+//							 			if(Visits_Bucket='1' and Recency_Bucket='>365' and Cell='B',10,
+//							 				if(Visits_Bucket='1' and Recency_Bucket='<90' and Cell='A',11,
+//							 					if(Visits_Bucket='1' and Recency_Bucket='<90' and Cell='B',12)))))))))))) as Bucket
+//Resident Temp_2
+//;
+//
+//Drop table Temp_2;
+//
+//
+//NoConcatenate
+//
+//Recommendation_Final:
+//Load *
+//Resident Recommendation_Buckets
+//
+//Order by Bucket,Tie_Break;
+//
+//Drop table Recommendation_Buckets;
+//
+//Store Recommendation_Final into Recommendation_Final.qvd;
